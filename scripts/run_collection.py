@@ -1,3 +1,5 @@
+import time
+
 from app.collectors.mock_ads_collector import MockAdsCollector
 from app.collectors.google_ads_collector import GoogleAdsCollector
 
@@ -8,7 +10,10 @@ from app.scoring.engine import ScoreEngine
 from app.alerts.telegram_sender import send_telegram_message
 
 
-def run():
+INTERVAL_SECONDS = 1800  # 30 minutos
+
+
+def run_once():
     collectors = [
         MockAdsCollector(),
         GoogleAdsCollector()
@@ -92,5 +97,24 @@ Motivos:
     send_telegram_message(report)
 
 
+def main():
+    print("Radar iniciado em loop de 30 minutos.")
+
+    while True:
+        try:
+            run_once()
+        except Exception as e:
+            error_message = f"Erro no radar: {e}"
+            print(error_message)
+            try:
+                send_telegram_message(error_message)
+            except Exception as telegram_error:
+                print("Erro ao enviar erro para Telegram:", telegram_error)
+
+        print(f"Aguardando {INTERVAL_SECONDS} segundos para próxima rodada...")
+        time.sleep(INTERVAL_SECONDS)
+
+
 if __name__ == "__main__":
-    run()
+    main()
+
