@@ -2,6 +2,7 @@ import time
 
 from app.collectors.mock_ads_collector import MockAdsCollector
 from app.collectors.google_ads_collector import GoogleAdsCollector
+from app.collectors.tiktok_creative_center_collector import TikTokCreativeCenterCollector
 
 from app.classifiers.niche import NicheClassifier
 from app.classifiers.language import LanguageDetector
@@ -16,7 +17,8 @@ INTERVAL_SECONDS = 1800  # 30 minutos
 def run_once():
     collectors = [
         MockAdsCollector(),
-        GoogleAdsCollector()
+        GoogleAdsCollector(),
+        TikTokCreativeCenterCollector()
     ]
 
     niche_classifier = NicheClassifier()
