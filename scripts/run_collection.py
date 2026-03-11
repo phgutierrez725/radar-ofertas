@@ -10,6 +10,9 @@ from app.classifiers.language import LanguageDetector
 from app.scoring.engine import ScoreEngine
 from app.alerts.telegram_sender import send_telegram_message
 
+from app.detectors.new_landing_detector import NewLandingDetector
+from app.detectors.new_creative_detector import NewCreativeDetector
+
 
 INTERVAL_SECONDS = 1800  # 30 minutos
 
@@ -24,6 +27,9 @@ def run_once():
     niche_classifier = NicheClassifier()
     language_detector = LanguageDetector()
     score_engine = ScoreEngine()
+
+    landing_detector = NewLandingDetector()
+    creative_detector = NewCreativeDetector()
 
     all_ads = []
     filtered_ads = []
@@ -48,6 +54,21 @@ def run_once():
         ad["reasons"] = score_data["reasons"]
 
         active_ads_count = ad.get("active_ads_count", 0)
+
+        landing_url = ad.get("landing_url", "")
+        creative_url = ad.get("creative_url", landing_url)
+
+        is_new_landing = False
+        is_new_creative = False
+
+        if landing_url:
+            is_new_landing = landing_detector.check(landing_url)
+
+        if creative_url:
+            is_new_creative = creative_detector.check(creative_url)
+
+        ad["new_landing"] = is_new_landing
+        ad["new_creative"] = is_new_creative
 
         is_igaming_priority = (
             ad["niche"] == "igaming" and ad["status"] in ["forte", "escalada"]
@@ -85,6 +106,8 @@ Anúncios ativos: {ad.get("active_ads_count")}
 Score: {ad.get("score")}
 Status: {ad.get("status")}
 Landing: {ad.get("landing_url")}
+Nova landing: {ad.get("new_landing")}
+Novo criativo: {ad.get("new_creative")}
 Motivos:
 {reasons_text}
 
