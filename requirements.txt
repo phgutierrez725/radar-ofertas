@@ -7,3 +7,5 @@ sqlalchemy
 pandas
 langdetect
 streamlit
+requests
+python-telegram-bot
