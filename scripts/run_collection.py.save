@@ -1,0 +1,15 @@
+
+from app.collectors.mock_ads_collector import MockAdsCollector
+
+
+def run():
+
+    collector = MockAdsCollector()
+
+    ads = collector.collect()
+
+    print("\nTotal de anúncios coletados:", len(ads))
+
+
+if __name__ == "__main__":
+    run()
