@@ -4,6 +4,7 @@ from app.collectors.mock_ads_collector import MockAdsCollector
 from app.collectors.google_ads_collector import GoogleAdsCollector
 from app.collectors.tiktok_creative_center_collector import TikTokCreativeCenterCollector
 from app.collectors.facebook_ads_library_collector import FacebookAdsLibraryCollector
+from app.collectors.youtube_ads_collector import YouTubeAdsCollector
 
 from app.classifiers.niche import NicheClassifier
 from app.classifiers.language import LanguageDetector
@@ -19,12 +20,12 @@ INTERVAL_SECONDS = 1800
 
 
 def run_once():
-
     collectors = [
         MockAdsCollector(),
         GoogleAdsCollector(),
         TikTokCreativeCenterCollector(),
-        FacebookAdsLibraryCollector()
+        FacebookAdsLibraryCollector(),
+        YouTubeAdsCollector()
     ]
 
     niche_classifier = NicheClassifier()
@@ -42,7 +43,6 @@ def run_once():
         all_ads.extend(ads)
 
     for ad in all_ads:
-
         headline = ad.get("headline", "")
 
         niche = niche_classifier.classify(headline)
@@ -97,10 +97,8 @@ def run_once():
 
     if not filtered_ads:
         report += "Nenhuma oferta relevante encontrada nesta rodada."
-
     else:
         for ad in filtered_ads:
-
             reasons_text = "\n".join(
                 [f"- {reason}" for reason in ad.get("reasons", [])]
             )
@@ -123,7 +121,6 @@ Motivos:
 --------------------
 
 """
-
             report += line
 
     print("\nRelatório Telegram:\n")
@@ -133,27 +130,21 @@ Motivos:
 
 
 def main():
-
     print("Radar iniciado em loop de 30 minutos.")
 
     while True:
-
         try:
             run_once()
-
         except Exception as e:
-
             error_message = f"Erro no radar: {e}"
             print(error_message)
 
             try:
                 send_telegram_message(error_message)
-
             except Exception as telegram_error:
                 print("Erro ao enviar erro para Telegram:", telegram_error)
 
         print(f"Aguardando {INTERVAL_SECONDS} segundos para próxima rodada...")
-
         time.sleep(INTERVAL_SECONDS)
 
 
