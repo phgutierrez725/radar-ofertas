@@ -4,7 +4,6 @@ from .base import BaseCollector
 
 
 class TikTokCreativeCenterCollector(BaseCollector):
-
     def __init__(self):
         super().__init__("tiktok_creative_center")
 
@@ -23,7 +22,11 @@ class TikTokCreativeCenterCollector(BaseCollector):
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, "html.parser")
 
-                title = soup.title.string.strip() if soup.title and soup.title.string else "TikTok Top Ads"
+                title = (
+                    soup.title.string.strip()
+                    if soup.title and soup.title.string
+                    else "TikTok Top Ads"
+                )
 
                 ad = {
                     "platform": "tiktok",
@@ -31,8 +34,7 @@ class TikTokCreativeCenterCollector(BaseCollector):
                     "language": "en",
                     "headline": title,
                     "landing_url": url,
-                    ""active_ads_count": 120
-
+                    "active_ads_count": 120
                 }
 
                 ads.append(ad)
