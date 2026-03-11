@@ -5,6 +5,9 @@ from app.collectors.google_ads_collector import GoogleAdsCollector
 from app.collectors.tiktok_creative_center_collector import TikTokCreativeCenterCollector
 from app.collectors.facebook_ads_library_collector import FacebookAdsLibraryCollector
 from app.collectors.youtube_ads_collector import YouTubeAdsCollector
+from app.collectors.taboola_ads_collector import TaboolaAdsCollector
+from app.collectors.outbrain_ads_collector import OutbrainAdsCollector
+from app.collectors.kwai_ads_collector import KwaiAdsCollector
 
 from app.classifiers.niche import NicheClassifier
 from app.classifiers.language import LanguageDetector
@@ -25,7 +28,10 @@ def run_once():
         GoogleAdsCollector(),
         TikTokCreativeCenterCollector(),
         FacebookAdsLibraryCollector(),
-        YouTubeAdsCollector()
+        YouTubeAdsCollector(),
+        TaboolaAdsCollector(),
+        OutbrainAdsCollector(),
+        KwaiAdsCollector()
     ]
 
     niche_classifier = NicheClassifier()
@@ -150,4 +156,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
