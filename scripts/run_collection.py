@@ -17,6 +17,7 @@ from app.alerts.telegram_sender import send_telegram_message
 from app.detectors.new_landing_detector import NewLandingDetector
 from app.detectors.new_creative_detector import NewCreativeDetector
 from app.detectors.new_offer_detector import NewOfferDetector
+from app.detectors.escalation_detector import EscalationDetector
 
 
 INTERVAL_SECONDS = 1800
@@ -40,9 +41,22 @@ def run_once():
     landing_detector = NewLandingDetector()
     creative_detector = NewCreativeDetector()
     offer_detector = NewOfferDetector()
+    escalation_detector = EscalationDetector()
 
     all_ads = []
     filtered_ads = []
+
+    blocked_domains = [
+        "facebook.com",
+        "google.com",
+        "youtube.com",
+        "tiktok.com",
+        "outbrain.com",
+        "taboola.com",
+        "ads.kwai.com",
+        "adstransparency.google.com",
+        "ads.tiktok.com"
+    ]
 
     for collector in collectors:
         ads = collector.collect()
@@ -50,6 +64,18 @@ def run_once():
 
     for ad in all_ads:
         headline = ad.get("headline", "")
+        landing_url = ad.get("landing_url", "")
+        creative_url = ad.get("creative_url", landing_url)
+        active_ads_count = ad.get("active_ads_count", 0)
+
+        skip = False
+        for domain in blocked_domains:
+            if landing_url and domain in landing_url:
+                skip = True
+                break
+
+        if skip:
+            continue
 
         niche = niche_classifier.classify(headline)
         detected_language = language_detector.detect_language(headline)
@@ -63,14 +89,12 @@ def run_once():
         ad["status"] = score_data["status"]
         ad["reasons"] = score_data["reasons"]
 
-        active_ads_count = ad.get("active_ads_count", 0)
-
-        landing_url = ad.get("landing_url", "")
-        creative_url = ad.get("creative_url", landing_url)
+        ad_id = ad.get("id", landing_url or headline)
 
         is_new_landing = False
         is_new_creative = False
         is_new_offer = False
+        is_escalating = False
 
         if landing_url:
             is_new_landing = landing_detector.check(landing_url)
@@ -79,9 +103,13 @@ def run_once():
         if creative_url:
             is_new_creative = creative_detector.check(creative_url)
 
+        if ad_id:
+            is_escalating = escalation_detector.check(ad_id, active_ads_count)
+
         ad["new_landing"] = is_new_landing
         ad["new_creative"] = is_new_creative
         ad["new_offer"] = is_new_offer
+        ad["escalating"] = is_escalating
 
         is_igaming_priority = (
             ad["niche"] == "igaming" and ad["status"] in ["forte", "escalada"]
@@ -91,7 +119,9 @@ def run_once():
             ad["niche"] != "igaming" and active_ads_count >= 100
         )
 
-        if is_igaming_priority or is_other_niche_high_volume:
+        is_escalation_priority = is_escalating
+
+        if is_igaming_priority or is_other_niche_high_volume or is_escalation_priority:
             filtered_ads.append(ad)
 
     print("\nOfertas filtradas:\n")
@@ -131,13 +161,13 @@ Landing:
 Nova oferta: {ad.get("new_offer")}
 Nova landing: {ad.get("new_landing")}
 Novo criativo: {ad.get("new_creative")}
+Escalando: {ad.get("escalating")}
 
 Motivos:
 {reasons_text}
 
 ---------------------
 """
-
             report += message
 
     print("\nRelatório Telegram:\n")
@@ -152,7 +182,6 @@ def main():
     while True:
         try:
             run_once()
-
         except Exception as e:
             error_message = f"Erro no radar: {e}"
             print(error_message)
