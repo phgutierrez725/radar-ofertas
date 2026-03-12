@@ -19,6 +19,7 @@ from app.detectors.new_creative_detector import NewCreativeDetector
 from app.detectors.new_offer_detector import NewOfferDetector
 from app.detectors.escalation_detector import EscalationDetector
 from app.detectors.suspicious_domain_detector import SuspiciousDomainDetector
+from app.detectors.offer_signal_detector import OfferSignalDetector
 
 
 INTERVAL_SECONDS = 1800
@@ -45,6 +46,7 @@ def run_once():
     offer_detector = NewOfferDetector()
     escalation_detector = EscalationDetector()
     suspicious_domain_detector = SuspiciousDomainDetector()
+    offer_signal_detector = OfferSignalDetector()
 
     all_ads = []
     filtered_ads = []
@@ -101,6 +103,7 @@ def run_once():
         is_new_offer = False
         is_escalating = False
         is_suspicious_domain = False
+        is_offer_signal = False
 
         if landing_url:
             is_new_landing = landing_detector.check(landing_url)
@@ -113,14 +116,19 @@ def run_once():
         if ad_id:
             is_escalating = escalation_detector.check(ad_id, active_ads_count)
 
+        is_offer_signal = offer_signal_detector.check(headline)
+
         ad["new_landing"] = is_new_landing
         ad["new_creative"] = is_new_creative
         ad["new_offer"] = is_new_offer
         ad["escalating"] = is_escalating
         ad["suspicious_domain"] = is_suspicious_domain
+        ad["offer_signal"] = is_offer_signal
 
         should_alert = (
-            is_suspicious_domain and is_escalating
+            (is_suspicious_domain and is_escalating)
+            or
+            (is_offer_signal and is_escalating)
         )
 
         if should_alert:
@@ -165,6 +173,7 @@ Landing:
 {ad.get("landing_url")}
 
 Domínio suspeito: {ad.get("suspicious_domain")}
+Sinal de oferta: {ad.get("offer_signal")}
 Nova oferta: {ad.get("new_offer")}
 Nova landing: {ad.get("new_landing")}
 Novo criativo: {ad.get("new_creative")}
