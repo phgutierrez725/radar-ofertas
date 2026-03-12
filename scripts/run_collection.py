@@ -16,13 +16,13 @@ from app.alerts.telegram_sender import send_telegram_message
 
 from app.detectors.new_landing_detector import NewLandingDetector
 from app.detectors.new_creative_detector import NewCreativeDetector
+from app.detectors.new_offer_detector import NewOfferDetector
 
 
 INTERVAL_SECONDS = 1800
 
 
 def run_once():
-
     collectors = [
         GoogleAdsCollector(),
         TikTokCreativeCenterCollector(),
@@ -39,6 +39,7 @@ def run_once():
 
     landing_detector = NewLandingDetector()
     creative_detector = NewCreativeDetector()
+    offer_detector = NewOfferDetector()
 
     all_ads = []
     filtered_ads = []
@@ -48,14 +49,13 @@ def run_once():
         all_ads.extend(ads)
 
     for ad in all_ads:
-
         headline = ad.get("headline", "")
 
         niche = niche_classifier.classify(headline)
-        language = language_detector.detect_language(headline)
+        detected_language = language_detector.detect_language(headline)
 
         ad["niche"] = niche
-        ad["detected_language"] = language
+        ad["detected_language"] = detected_language
 
         score_data = score_engine.calculate_score(ad)
 
@@ -63,34 +63,35 @@ def run_once():
         ad["status"] = score_data["status"]
         ad["reasons"] = score_data["reasons"]
 
-        landing_url = ad.get("landing_url", "")
-        creative_url = ad.get("creative_url", "")
+        active_ads_count = ad.get("active_ads_count", 0)
 
-        new_landing = False
-        new_creative = False
+        landing_url = ad.get("landing_url", "")
+        creative_url = ad.get("creative_url", landing_url)
+
+        is_new_landing = False
+        is_new_creative = False
+        is_new_offer = False
 
         if landing_url:
-            new_landing = landing_detector.check(landing_url)
+            is_new_landing = landing_detector.check(landing_url)
+            is_new_offer = offer_detector.check(landing_url)
 
         if creative_url:
-            new_creative = creative_detector.check(creative_url)
+            is_new_creative = creative_detector.check(creative_url)
 
-        ad["new_landing"] = new_landing
-        ad["new_creative"] = new_creative
+        ad["new_landing"] = is_new_landing
+        ad["new_creative"] = is_new_creative
+        ad["new_offer"] = is_new_offer
 
-        active_ads = ad.get("active_ads_count", 0)
-
-        igaming_priority = (
-            ad["niche"] == "igaming"
-            and ad["status"] in ["forte", "escalada"]
+        is_igaming_priority = (
+            ad["niche"] == "igaming" and ad["status"] in ["forte", "escalada"]
         )
 
-        other_high_volume = (
-            ad["niche"] != "igaming"
-            and active_ads >= 100
+        is_other_niche_high_volume = (
+            ad["niche"] != "igaming" and active_ads_count >= 100
         )
 
-        if igaming_priority or other_high_volume:
+        if is_igaming_priority or is_other_niche_high_volume:
             filtered_ads.append(ad)
 
     print("\nOfertas filtradas:\n")
@@ -106,9 +107,7 @@ def run_once():
     if not filtered_ads:
         report += "Nenhuma oferta relevante encontrada."
     else:
-
         for ad in filtered_ads:
-
             reasons_text = "\n".join(
                 [f"- {reason}" for reason in ad.get("reasons", [])]
             )
@@ -129,6 +128,7 @@ Status: {ad.get("status")}
 Landing:
 {ad.get("landing_url")}
 
+Nova oferta: {ad.get("new_offer")}
 Nova landing: {ad.get("new_landing")}
 Novo criativo: {ad.get("new_creative")}
 
@@ -147,23 +147,19 @@ Motivos:
 
 
 def main():
-
     print("Radar iniciado — scan a cada 30 minutos.")
 
     while True:
-
         try:
             run_once()
 
         except Exception as e:
-
             error_message = f"Erro no radar: {e}"
-
             print(error_message)
 
             try:
                 send_telegram_message(error_message)
-            except:
+            except Exception:
                 pass
 
         print(f"Aguardando {INTERVAL_SECONDS} segundos...")
