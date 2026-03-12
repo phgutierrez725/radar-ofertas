@@ -1,6 +1,5 @@
 import time
 
-from app.collectors.mock_ads_collector import MockAdsCollector
 from app.collectors.google_ads_collector import GoogleAdsCollector
 from app.collectors.tiktok_creative_center_collector import TikTokCreativeCenterCollector
 from app.collectors.facebook_ads_library_collector import FacebookAdsLibraryCollector
@@ -23,8 +22,8 @@ INTERVAL_SECONDS = 1800
 
 
 def run_once():
+
     collectors = [
-        MockAdsCollector(),
         GoogleAdsCollector(),
         TikTokCreativeCenterCollector(),
         FacebookAdsLibraryCollector(),
@@ -49,13 +48,14 @@ def run_once():
         all_ads.extend(ads)
 
     for ad in all_ads:
+
         headline = ad.get("headline", "")
 
         niche = niche_classifier.classify(headline)
-        detected_language = language_detector.detect_language(headline)
+        language = language_detector.detect_language(headline)
 
         ad["niche"] = niche
-        ad["detected_language"] = detected_language
+        ad["detected_language"] = language
 
         score_data = score_engine.calculate_score(ad)
 
@@ -63,32 +63,34 @@ def run_once():
         ad["status"] = score_data["status"]
         ad["reasons"] = score_data["reasons"]
 
-        active_ads_count = ad.get("active_ads_count", 0)
-
         landing_url = ad.get("landing_url", "")
-        creative_url = ad.get("creative_url", landing_url)
+        creative_url = ad.get("creative_url", "")
 
-        is_new_landing = False
-        is_new_creative = False
+        new_landing = False
+        new_creative = False
 
         if landing_url:
-            is_new_landing = landing_detector.check(landing_url)
+            new_landing = landing_detector.check(landing_url)
 
         if creative_url:
-            is_new_creative = creative_detector.check(creative_url)
+            new_creative = creative_detector.check(creative_url)
 
-        ad["new_landing"] = is_new_landing
-        ad["new_creative"] = is_new_creative
+        ad["new_landing"] = new_landing
+        ad["new_creative"] = new_creative
 
-        is_igaming_priority = (
-            ad["niche"] == "igaming" and ad["status"] in ["forte", "escalada"]
+        active_ads = ad.get("active_ads_count", 0)
+
+        igaming_priority = (
+            ad["niche"] == "igaming"
+            and ad["status"] in ["forte", "escalada"]
         )
 
-        is_other_niche_high_volume = (
-            ad["niche"] != "igaming" and active_ads_count >= 100
+        other_high_volume = (
+            ad["niche"] != "igaming"
+            and active_ads >= 100
         )
 
-        if is_igaming_priority or is_other_niche_high_volume:
+        if igaming_priority or other_high_volume:
             filtered_ads.append(ad)
 
     print("\nOfertas filtradas:\n")
@@ -102,32 +104,41 @@ def run_once():
     report = "🔥 RADAR DE OFERTAS\n\n"
 
     if not filtered_ads:
-        report += "Nenhuma oferta relevante encontrada nesta rodada."
+        report += "Nenhuma oferta relevante encontrada."
     else:
+
         for ad in filtered_ads:
+
             reasons_text = "\n".join(
                 [f"- {reason}" for reason in ad.get("reasons", [])]
             )
 
-            line = f"""Nicho: {ad.get("niche")}
+            message = f"""
+Nicho: {ad.get("niche")}
 País: {ad.get("country")}
 Plataforma: {ad.get("platform")}
 Idioma: {ad.get("detected_language")}
-Headline: {ad.get("headline")}
+
+Headline:
+{ad.get("headline")}
+
 Anúncios ativos: {ad.get("active_ads_count")}
 Score: {ad.get("score")}
 Status: {ad.get("status")}
-Landing: {ad.get("landing_url")}
+
+Landing:
+{ad.get("landing_url")}
+
 Nova landing: {ad.get("new_landing")}
 Novo criativo: {ad.get("new_creative")}
 
 Motivos:
 {reasons_text}
 
---------------------
-
+---------------------
 """
-            report += line
+
+            report += message
 
     print("\nRelatório Telegram:\n")
     print(report)
@@ -136,21 +147,26 @@ Motivos:
 
 
 def main():
-    print("Radar iniciado em loop de 30 minutos.")
+
+    print("Radar iniciado — scan a cada 30 minutos.")
 
     while True:
+
         try:
             run_once()
+
         except Exception as e:
+
             error_message = f"Erro no radar: {e}"
+
             print(error_message)
 
             try:
                 send_telegram_message(error_message)
-            except Exception as telegram_error:
-                print("Erro ao enviar erro para Telegram:", telegram_error)
+            except:
+                pass
 
-        print(f"Aguardando {INTERVAL_SECONDS} segundos para próxima rodada...")
+        print(f"Aguardando {INTERVAL_SECONDS} segundos...")
         time.sleep(INTERVAL_SECONDS)
 
 
